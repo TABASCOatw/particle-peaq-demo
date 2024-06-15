@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { PeaqAgungTestnet } from '@particle-network/chains';
-import { AAWrapProvider, SendTransactionMode, SmartAccount } from '@particle-network/aa';
+import { AAWrapProvider, SmartAccount } from '@particle-network/aa';
 import { useEthereum, useConnect, useAuthCore } from '@particle-network/auth-core-modal';
 import { ethers } from 'ethers';
 import { notification } from 'antd';
@@ -12,7 +12,7 @@ const App = () => {
   const { connect, disconnect } = useConnect();
   const { userInfo } = useAuthCore();
 
-  const [balance, setBalance] = useState(null);
+  const [balance, setBalance] = useState("...");
 
   const smartAccount = new SmartAccount(provider, {
     projectId: process.env.REACT_APP_PROJECT_ID,
@@ -25,7 +25,7 @@ const App = () => {
     }
   });
 
-  const customProvider = new ethers.providers.Web3Provider(new AAWrapProvider(smartAccount, SendTransactionMode.Gasless), "any");
+  const customProvider = new ethers.providers.Web3Provider(new AAWrapProvider(smartAccount), "any");
 
   useEffect(() => {
     if (userInfo) {
@@ -49,21 +49,24 @@ const App = () => {
   };
 
   const executeUserOp = async () => {
-    const signer = customProvider.getSigner();
-
     const tx = {
       to: "0x000000000000000000000000000000000000dEaD",
       value: ethers.utils.parseEther('0.001')
     };
 
-    const txResponse = await signer.sendTransaction(tx);
-    const txReceipt = await txResponse.wait();
+    notification.info({
+      message: "Loading Transaction"
+    });
+
+    const feeQuotes = await smartAccount.getFeeQuotes(tx);
+
+    const txResponse = await smartAccount.sendUserOperation({userOp: feeQuotes.verifyingPaymasterGasless.userOp, userOpHash: feeQuotes.verifyingPaymasterGasless.userOpHash});
 
     notification.success({
       message: "Transaction Successful",
       description: (
         <div>
-          Transaction Hash: <a href={`https://sepolia.explorer.mode.network/tx/${txReceipt.transactionHash}`} target="_blank" rel="noopener noreferrer">{txReceipt.transactionHash}</a>
+          Transaction Hash: <a href={`https://agung-testnet.subscan.io/tx/${txResponse}`} target="_blank" rel="noopener noreferrer">{txResponse}</a>
         </div>
       )
     });
